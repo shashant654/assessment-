@@ -59,6 +59,58 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
+// Create a new conversation
+router.post('/', async (req, res, next) => {
+  try {
+    const { customerName, customerId, agentId } = req.body;
+    
+    if (!customerName) {
+      return res.status(400).json({ message: 'Customer name is required' });
+    }
+    
+    // Generate a unique conversation ID
+    const timestamp = Date.now();
+    const conversationId = `conv-${timestamp}`;
+    
+    const newConversation = new Conversation({
+      id: conversationId,
+      customer: {
+        id: customerId || `cust-${timestamp}`,
+        name: customerName
+      },
+      agent: {
+        id: agentId || 'agent-cs-1',
+        name: 'Customer Service Agent'
+      },
+      status: 'active',
+      alertLevel: 'low',
+      startTime: new Date(),
+      messages: [{
+        sender: 'agent',
+        text: `Hello ${customerName}! Welcome to customer support. How can I help you today?`,
+        timestamp: new Date()
+      }],
+      metrics: {
+        sentiment: 0.7,
+        responseTime: 0,
+        confidenceScore: 0.9
+      },
+      tags: [],
+      humanIntervention: {
+        occurred: false
+      }
+    });
+    
+    await newConversation.save();
+    
+    await simulateDelay(200);
+    
+    res.status(201).json(newConversation);
+  } catch (error) {
+    next(error);
+  }
+});
+
 
 // Add a message to a conversation
 router.post('/:id/messages', async (req, res, next) => {

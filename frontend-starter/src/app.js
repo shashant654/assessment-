@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import theme from "./theme";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
+import Conversations from "./pages/Conversations";
 import AgentConfig from "./pages/AgentConfig";
 import ConversationView from "./pages/ConversationView";
 import Analysis from "./pages/Analysis";
@@ -22,6 +23,7 @@ function App() {
               <Layout>
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
+                  <Route path="/conversations" element={<Conversations />} />
                   <Route
                     path="/conversation/:id"
                     element={<ConversationView />}

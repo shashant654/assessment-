@@ -1,9 +1,15 @@
 // mockLlmApi.js
-// This file provides a simulated LLM API for the challenge
+// This file provides LLM API with Gemini integration and mock fallback
 
 const express = require('express');
 const router = express.Router();
 const { simulateDelay } = require('../utils/helpers');
+const {
+  generateGeminiResponse,
+  analyzeSentimentWithGemini,
+  retrieveKnowledgeWithGemini,
+  isGeminiAvailable,
+} = require('./geminiApi');
 
 // Sample personas for different agent types
 const agentPersonas = {
@@ -53,31 +59,60 @@ router.post('/generate', async (req, res) => {
   try {
     const { conversationId, messages, parameters, capabilities, knowledgeBases } = req.body;
     
-    // Simulate processing delay based on complexity
-    const delayTime = Math.floor(300 + Math.random() * 700);
-    await simulateDelay(delayTime);
-    
-    // Get the last customer message
-    const lastCustomerMessage = [...messages].reverse().find(m => m.role === 'customer');
-    
-    // Determine message type/intent
-    const messageIntent = determineIntent(lastCustomerMessage?.content || '');
-    
-    // Generate appropriate response
-    const response = generateResponse(messageIntent, lastCustomerMessage?.content || '', parameters, knowledgeBases);
-    
-    // Calculate mock metrics
-    const metrics = {
-      responseTime: delayTime / 1000,
-      confidenceScore: parameters?.temperature 
-        ? Math.max(0.4, 1 - parameters.temperature) 
-        : Math.random() * 0.3 + 0.6,
-      sentiment: null  // Sentiment is calculated on customer messages, not agent responses
-    };
+    let response = null;
+    let metrics = null;
+    let source = 'mock';
+
+    // Try Gemini API first if available
+    if (isGeminiAvailable()) {
+      try {
+        console.log('📨 Attempting to use Gemini API for response generation...');
+        const geminiResult = await generateGeminiResponse(messages, parameters?.systemPrompt);
+        
+        if (geminiResult) {
+          response = geminiResult.response;
+          metrics = geminiResult.metrics;
+          source = 'gemini';
+          console.log('✅ Response generated using Gemini API');
+        }
+      } catch (geminiError) {
+        console.warn('⚠️  Gemini API error, falling back to mock:', geminiError.message);
+      }
+    }
+
+    // Fall back to mock responses if Gemini not available or failed
+    if (!response) {
+      console.log('🤖 Using mock response generation');
+      
+      // Simulate processing delay based on complexity
+      const delayTime = Math.floor(300 + Math.random() * 700);
+      await simulateDelay(delayTime);
+      
+      // Get the last customer message
+      const lastCustomerMessage = [...messages].reverse().find(m => m.role === 'customer');
+      
+      // Determine message type/intent
+      const messageIntent = determineIntent(lastCustomerMessage?.content || '');
+      
+      // Generate appropriate response
+      response = generateResponse(messageIntent, lastCustomerMessage?.content || '', parameters, knowledgeBases);
+      
+      // Calculate mock metrics
+      metrics = {
+        responseTime: delayTime / 1000,
+        confidenceScore: parameters?.temperature 
+          ? Math.max(0.4, 1 - parameters.temperature) 
+          : Math.random() * 0.3 + 0.6,
+        sentiment: null
+      };
+      
+      source = 'mock';
+    }
     
     res.json({
       response,
-      metrics
+      metrics,
+      source
     });
   } catch (error) {
     console.error('Error generating LLM response:', error);
@@ -94,11 +129,40 @@ router.post('/sentiment', async (req, res) => {
       return res.status(400).json({ error: 'Text is required' });
     }
     
-    // Simulate processing delay
-    await simulateDelay(200);
+    let sentiment = null;
+    let source = 'mock';
     
-    // Calculate mock sentiment
-    const sentiment = calculateSentiment(text);
+    // Try Gemini API first if available
+    if (isGeminiAvailable()) {
+      try {
+        console.log('📨 Attempting to use Gemini API for sentiment analysis...');
+        const geminiResult = await analyzeSentimentWithGemini(text);
+        
+        if (geminiResult) {
+          sentiment = {
+            score: geminiResult.sentiment,
+            emotion: geminiResult.analysis.emotion,
+            intensity: geminiResult.analysis.intensity,
+            keywords: geminiResult.analysis.keywords
+          };
+          source = 'gemini';
+          console.log('✅ Sentiment analyzed using Gemini API');
+        }
+      } catch (geminiError) {
+        console.warn('⚠️  Gemini API error, falling back to mock:', geminiError.message);
+      }
+    }
+    
+    // Fall back to mock sentiment if Gemini not available or failed
+    if (!sentiment) {
+      console.log('🤖 Using mock sentiment analysis');
+      
+      // Simulate processing delay
+      await simulateDelay(200);
+      
+      // Calculate mock sentiment
+      sentiment = calculateSentiment(text);
+    }
     
     res.json({
       sentiment: sentiment.score,
@@ -106,7 +170,8 @@ router.post('/sentiment', async (req, res) => {
         emotion: sentiment.emotion,
         intensity: sentiment.intensity,
         keywords: sentiment.keywords
-      }
+      },
+      source
     });
   } catch (error) {
     console.error('Error analyzing sentiment:', error);
@@ -123,13 +188,37 @@ router.post('/knowledge', async (req, res) => {
       return res.status(400).json({ error: 'Query is required' });
     }
     
-    // Simulate processing delay
-    await simulateDelay(300);
+    let results = null;
+    let source = 'mock';
     
-    // Retrieve mock knowledge
-    const results = retrieveKnowledge(query, knowledgeBases, limit);
+    // Try Gemini API first if available
+    if (isGeminiAvailable()) {
+      try {
+        console.log('📨 Attempting to use Gemini API for knowledge retrieval...');
+        const geminiResult = await retrieveKnowledgeWithGemini(query);
+        
+        if (geminiResult) {
+          results = geminiResult.results.slice(0, limit);
+          source = 'gemini';
+          console.log('✅ Knowledge retrieved using Gemini API');
+        }
+      } catch (geminiError) {
+        console.warn('⚠️  Gemini API error, falling back to mock:', geminiError.message);
+      }
+    }
     
-    res.json({ results });
+    // Fall back to mock knowledge if Gemini not available or failed
+    if (!results) {
+      console.log('🤖 Using mock knowledge retrieval');
+      
+      // Simulate processing delay
+      await simulateDelay(300);
+      
+      // Retrieve mock knowledge
+      results = retrieveKnowledge(query, knowledgeBases, limit);
+    }
+    
+    res.json({ results, source });
   } catch (error) {
     console.error('Error retrieving knowledge:', error);
     res.status(500).json({ error: 'Failed to retrieve knowledge' });

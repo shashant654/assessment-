@@ -34,7 +34,7 @@ const Sidebar = () => {
 
   const navItems = [
     { name: "Dashboard", icon: FiHome, path: "/" },
-    { name: "Conversations", icon: FiMessageCircle, path: "/conversationView" },
+    { name: "Conversations", icon: FiMessageCircle, path: "/conversations" },
     { name: "AI Agent", icon: FiSettings, path: "/agent-config" },
     { name: "Analysis", icon: FiBarChart2, path: "/analysis" },
     { name: "Templates", icon: FiUsers, path: "/templates" },

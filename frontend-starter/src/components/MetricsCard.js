@@ -20,28 +20,43 @@ const MetricsCard = ({ title, value, icon, change, changeType, color = 'blue' })
       bg={bg}
       borderRadius="lg"
       boxShadow="sm"
-      p={4}
+      p={{ base: 3, md: 4 }}
       borderLeft="4px"
       borderColor={`${color}.500`}
+      transition="all 0.3s"
+      _hover={{ boxShadow: 'md', transform: 'translateY(-2px)' }}
     >
-      <Flex justify="space-between" align="center">
+      <Flex 
+        justify="space-between" 
+        align={{ base: 'flex-start', sm: 'center' }} 
+        direction={{ base: 'column', sm: 'row' }}
+        gap={2}
+      >
         <Stat>
-          <StatLabel color="gray.500">{title}</StatLabel>
-          <StatNumber fontSize="2xl">{value}</StatNumber>
-          {change && (
+          <StatLabel color="gray.500" fontSize={{ base: 'xs', md: 'sm' }}>
+            {title}
+          </StatLabel>
+          <StatNumber fontSize={{ base: 'xl', md: '2xl' }}>
+            {value}
+          </StatNumber>
+          {change && change !== '...' && (
             <StatHelpText>
               <StatArrow type={changeType} />
               {change}
             </StatHelpText>
           )}
+          {change === '...' && (
+            <StatHelpText>Updating...</StatHelpText>
+          )}
         </Stat>
         <Box
-          p={2}
+          p={{ base: 1, md: 2 }}
           borderRadius="md"
           bg={`${color}.50`}
           color={`${color}.500`}
+          flexShrink={0}
         >
-          <Icon as={icon} boxSize={6} />
+          <Icon as={icon} boxSize={{ base: 4, md: 6 }} />
         </Box>
       </Flex>
     </Box>

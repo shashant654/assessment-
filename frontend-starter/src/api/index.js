@@ -34,6 +34,15 @@ export const getConversation = async (id) => {
   return response.data;
 };
 
+export const createConversation = async (customerName, customerId, agentId) => {
+  const response = await api.post('/api/conversations', {
+    customerName,
+    customerId,
+    agentId
+  });
+  return response.data;
+};
+
 export const addMessage = async (conversationId, message) => {
   const response = await api.post(
     `/api/conversations/${conversationId}/messages`,
@@ -120,6 +129,49 @@ export const getTrends = async (params) => {
 export const getTopIssues = async (params) => {
   const response = await api.get("/api/analytics/top-issues", { params });
   return response.data;
+};
+
+// Subscribe to real-time metrics using Server-Sent Events
+export const subscribeToMetrics = (timeRange = "today", onUpdate, onError) => {
+  try {
+    const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:9000";
+    const eventSource = new EventSource(
+      `${apiUrl}/api/analytics/stream?timeRange=${timeRange}`
+    );
+
+    eventSource.addEventListener("message", (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (onUpdate) {
+          onUpdate(data);
+        }
+      } catch (error) {
+        console.error("Error parsing metrics update:", error);
+        if (onError) {
+          onError(error);
+        }
+      }
+    });
+
+    eventSource.addEventListener("error", (error) => {
+      console.error("EventSource error:", error);
+      eventSource.close();
+      if (onError) {
+        onError(error);
+      }
+    });
+
+    // Return function to close the connection
+    return () => {
+      eventSource.close();
+    };
+  } catch (error) {
+    console.error("Error subscribing to metrics:", error);
+    if (onError) {
+      onError(error);
+    }
+    return () => {};
+  }
 };
 
 // Templates

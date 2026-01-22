@@ -212,7 +212,7 @@ export const AppDataProvider = ({ children }) => {
 
       try {
         const agentsData = await getAgents();
-        setAgents(agentsData || []);
+        setAgents(agentsData.value || agentsData || []);
         setLoading(prev => ({ ...prev, agents: false }));
       } catch (err) {
         console.error('Error loading agents:', err);
@@ -222,7 +222,7 @@ export const AppDataProvider = ({ children }) => {
 
       try {
         const knowledgeBasesData = await getKnowledgeBases();
-        setKnowledgeBases(knowledgeBasesData || []);
+        setKnowledgeBases(knowledgeBasesData.value || knowledgeBasesData || []);
         setLoading(prev => ({ ...prev, knowledgeBases: false }));
       } catch (err) {
         console.error('Error loading knowledge bases:', err);
@@ -320,6 +320,22 @@ export const AppDataProvider = ({ children }) => {
     }
   };
 
+  const refreshData = async () => {
+    try {
+      const conversationsData = await getConversations();
+      setConversations(conversationsData.data || []);
+    } catch (err) {
+      console.error('Error refreshing conversations:', err);
+    }
+
+    try {
+      const agentsData = await getAgents();
+      setAgents(agentsData.value || agentsData || []);
+    } catch (err) {
+      console.error('Error refreshing agents:', err);
+    }
+  };
+
   return (
     <AppDataContext.Provider
       value={{
@@ -331,6 +347,7 @@ export const AppDataProvider = ({ children }) => {
         updateConversation,
         updateAgent,
         interveneInConversation,
+        refreshData,
       }}
     >
       {children}

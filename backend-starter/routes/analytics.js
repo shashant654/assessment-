@@ -212,4 +212,111 @@ router.get("/top-issues", async (req, res, next) => {
   }
 });
 
+// Server-Sent Events stream for real-time metrics
+router.get("/stream", async (req, res, next) => {
+  try {
+    const { timeRange = "today" } = req.query;
+
+    // Set SSE headers
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+
+    // Helper function to calculate metrics
+    const getMetrics = async () => {
+      try {
+        const now = new Date();
+        let startDate = new Date();
+
+        switch (timeRange) {
+          case "today":
+            startDate.setHours(0, 0, 0, 0);
+            break;
+          case "week":
+            startDate.setDate(now.getDate() - 7);
+            break;
+          case "month":
+            startDate.setMonth(now.getMonth() - 1);
+            break;
+          default:
+            startDate.setHours(0, 0, 0, 0);
+        }
+
+        const conversations = await Conversation.find({
+          startTime: { $gte: startDate },
+        });
+
+        const activeConversations = conversations.filter(
+          (c) => c.status === "active"
+        ).length;
+        const escalatedConversations = conversations.filter(
+          (c) => c.status === "escalated"
+        ).length;
+        const resolvedConversations = conversations.filter(
+          (c) => c.status === "resolved"
+        ).length;
+
+        const avgResponseTime =
+          conversations.length > 0
+            ? conversations.reduce(
+                (sum, c) => sum + (c.metrics?.responseTime || 0),
+                0
+              ) / conversations.length
+            : 0;
+
+        const avgSentiment =
+          conversations.length > 0
+            ? conversations.reduce(
+                (sum, c) => sum + (c.metrics?.sentiment || 0),
+                0
+              ) / conversations.length
+            : 0;
+
+        const highAlertConversations = conversations.filter(
+          (c) => c.alertLevel === "high"
+        ).length;
+
+        return {
+          timestamp: new Date().toISOString(),
+          metrics: {
+            activeConversations,
+            escalatedConversations,
+            resolvedConversations,
+            avgResponseTime: Math.round(avgResponseTime * 10) / 10,
+            avgSentiment: Math.round(avgSentiment * 100) / 100,
+            highAlertConversations,
+            totalConversations: conversations.length,
+          },
+        };
+      } catch (error) {
+        console.error("Error calculating metrics:", error);
+        return null;
+      }
+    };
+
+    // Send initial metrics
+    const initialMetrics = await getMetrics();
+    if (initialMetrics) {
+      res.write(`data: ${JSON.stringify(initialMetrics)}\n\n`);
+    }
+
+    // Send metrics every 2 seconds
+    const intervalId = setInterval(async () => {
+      const metrics = await getMetrics();
+      if (metrics && res.writable) {
+        res.write(`data: ${JSON.stringify(metrics)}\n\n`);
+      }
+    }, 2000);
+
+    // Handle client disconnect
+    req.on("close", () => {
+      clearInterval(intervalId);
+      res.end();
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

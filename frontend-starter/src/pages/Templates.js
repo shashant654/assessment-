@@ -52,12 +52,16 @@ import {
 
 const CATEGORIES = [
   "Greeting",
+  "Shipping",
+  "Returns",
   "Problem Resolution",
   "Escalation",
   "Follow-up",
   "Closing",
   "Apology",
   "Information",
+  "Refunds",
+  "Technical Support",
   "Other",
 ];
 
